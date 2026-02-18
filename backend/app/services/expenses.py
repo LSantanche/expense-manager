@@ -12,10 +12,10 @@ from app.schemas.expense import ExpenseCreate, ExpenseUpdate
 
 def create_expense(db: Session, payload: ExpenseCreate) -> Expense:
     """Crea una spesa a DB e ritorna l'oggetto persistito."""
-    expense = Expense(**payload.model_dump())
-    db.add(expense)
-    db.commit()
-    db.refresh(expense)
+    expense = Expense(**payload.model_dump()) # Converte in dict il model ExpenseCreate
+    db.add(expense) # Lo mette in pending nella session
+    db.commit() # Esegue insert su DB e rende persistente la riga
+    db.refresh(expense) # Ricarica da DB
     return expense
 
 
@@ -89,7 +89,7 @@ def list_expenses(
 
     items_stmt = base_stmt.limit(limit).offset(offset)
     items = list(db.scalars(items_stmt).all())
-    return items, total
+    return items, total # Lista paginata di expenses e numero di righe che matchano i filtri
 
 
 def get_expense(db: Session, expense_id: int) -> Expense | None:
