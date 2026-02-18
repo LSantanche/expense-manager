@@ -1,48 +1,50 @@
-from datetime import date, datetime
+from __future__ import annotations
 
-from sqlalchemy import Boolean, Date, DateTime, Numeric, String, Text, func
+from datetime import date
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Date, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base
+from app.models.base import Base, TimestampMixin
 
 
-class Expense(Base):
+class Expense(Base, TimestampMixin):
     """
     Tabella delle spese.
 
-    Questa è una core business entity:
-    una singola spesa inserita manualmente o estratta da una ricevuta.
+    È una "core business entity": una singola spesa inserita manualmente
+    o (in futuro) estratta da una ricevuta tramite OCR/estrazione.
     """
 
     __tablename__ = "expenses"
 
-    # Primary key (id unico per ogni riga)
+    # Identificativo univoco della riga
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    # Cifra pagata (usiamo Numeric essendo una cifra)
-    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    # Importo: usiamo Decimal (tramite Numeric) per evitare errori di arrotondamento dei float
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
-    # ISO currency code, e.g. "EUR"
+    # Codice valuta ISO 4217 (es. "EUR"). Default lato applicazione.
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
 
-    # Quando è avvenuta la spesa
+    # Data della transazione/spesa
     expense_date: Mapped[date] = mapped_column(Date, nullable=False)
 
-    # Venditore (input utente o output OCR)
-    merchant: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Esercente/merchant (manuale o OCR). Nullable perché l'OCR può fallire e vogliamo comunque salvare il record.
+    merchant: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    # Campi opzionali: categoria spesa, metodo di pagamento, eventuali note
+    # Categoria (sarà utile per analytics/forecast e per la classificazione futura)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Metodo di pagamento (opzionale)
     payment_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Note libere (utile anche per RAG/ricerche testuali future)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Flag usata per la revisione human-in-the-loop (OCR con bassa confidence, inconsistenze, etc.)
-    needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Origine del dato: oggi "manual", domani anche "ocr"
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="manual")
 
-    # Timestamps per auditing (utile per prodotto e debugging)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
+    # Flag per revisione human-in-the-loop (bassa confidence, incongruenze, ecc.)
+    needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

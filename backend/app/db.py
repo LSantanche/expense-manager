@@ -13,7 +13,7 @@ def _engine_kwargs(database_url: str) -> dict[str, Any]:
         "pool_pre_ping": True,
     }
     if database_url.startswith("sqlite"):
-        # Needed for SQLite when used via FastAPI dependency/threading.
+        # Obbligatorio per SQLite quando usato via FastAPI dependency/threading.
         kwargs["connect_args"] = {"check_same_thread": False}
     return kwargs
 
