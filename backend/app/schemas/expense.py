@@ -29,6 +29,26 @@ class ExpenseCreate(ExpenseBase):
     """Input per creare una spesa."""
     pass
 
+class ExpenseUpdate(BaseModel):
+    """
+    Payload per update parziale (PATCH).
+
+    Nota: con exclude_unset=True possiamo distinguere:
+    - campo non inviato -> non tocco nulla
+    - campo inviato a null -> imposto a None (utile per "pulire" merchant/notes)
+    """
+
+    amount: Decimal | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, min_length=3, max_length=3)
+    expense_date: date | None = None
+
+    merchant: str | None = Field(default=None, max_length=255)
+    category: str | None = Field(default=None, max_length=100)
+    payment_method: str | None = Field(default=None, max_length=50)
+    notes: str | None = None
+
+    source: str | None = Field(default=None, max_length=20)
+    needs_review: bool | None = None
 
 class ExpenseRead(ExpenseBase):
     """Output di lettura spesa."""

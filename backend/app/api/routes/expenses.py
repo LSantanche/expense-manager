@@ -3,17 +3,24 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.schemas.expense import ExpenseCreate, ExpenseListResponse, ExpenseRead
-from app.services.expenses import create_expense, list_expenses
+from app.schemas.expense import ExpenseCreate, ExpenseListResponse, ExpenseRead, ExpenseUpdate
+from app.services.expenses import (
+    create_expense,
+    delete_expense,
+    get_expense,
+    list_expenses,
+    update_expense,
+)
 
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 db_dep = Depends(get_db)
 db_query = Query(default=None)
 db_query_ge0 = Query(default=None, ge=0)
+
 
 @router.post("", response_model=ExpenseRead, status_code=201)
 def create_expense_endpoint(payload: ExpenseCreate, db: Session = db_dep) -> ExpenseRead:
@@ -50,3 +57,40 @@ def list_expenses_endpoint(
         offset=offset,
     )
     return ExpenseListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/{expense_id}", response_model=ExpenseRead)
+def get_expense_endpoint(
+    expense_id: int = Path(..., ge=1),
+    db: Session = db_dep,
+) -> ExpenseRead:
+    """Ritorna una singola spesa per id."""
+    expense = get_expense(db, expense_id)
+    if expense is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return expense
+
+
+@router.patch("/{expense_id}", response_model=ExpenseRead)
+def update_expense_endpoint(
+    payload: ExpenseUpdate,
+    expense_id: int = Path(..., ge=1),
+    db: Session = db_dep,
+) -> ExpenseRead:
+    """Update parziale di una spesa (utile per correzioni HITL)."""
+    expense = update_expense(db, expense_id, payload)
+    if expense is None:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return expense
+
+
+@router.delete("/{expense_id}", status_code=204)
+def delete_expense_endpoint(
+    expense_id: int = Path(..., ge=1),
+    db: Session = db_dep,
+) -> Response:
+    """Elimina una spesa."""
+    ok = delete_expense(db, expense_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return Response(status_code=204)
