@@ -52,12 +52,17 @@ if "pagination" not in st.session_state:
     st.session_state["pagination"] = {"limit": 50, "offset": 0}
 
 ok = api_health()
-st.sidebar.success("Backend /health: OK") if ok else st.sidebar.error("Backend /health: KO (non raggiungibile)")
+if ok:
+    st.sidebar.success("Backend /health: OK")
+else:
+    st.sidebar.error("Backend /health: KO (non raggiungibile)")
 
+save_msg = st.sidebar.empty()
 with st.sidebar:
     st.header("Inserisci spesa (manuale)")
 
     amount_str = st.text_input("Importo (es. 12.34)", value="0.00")
+    amount_msg = st.empty()
     currency = st.text_input("Valuta (ISO 4217)", value="EUR", max_chars=3)
     expense_date = st.date_input("Data", value=date.today())
     merchant = st.text_input("Merchant (opzionale)", value="")
@@ -117,12 +122,14 @@ with st.sidebar:
 
 if submitted:
     # Validazione semplice lato UI per evitare float/rounding e input sporchi
+    amount_msg.empty()
     try:
         amount = Decimal(amount_str)
         if amount < 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):
-        st.error("Importo non valido. Usa un numero >= 0, ad esempio 12.34")
+        amount_msg.error("Importo non valido. Usa un numero >= 0")
+        st.stop() # Altrimenti il resto della pagina continua a renderizzare (chiamate api anche con input sbagliato)
     else:
         payload = {
             "amount": str(amount),
