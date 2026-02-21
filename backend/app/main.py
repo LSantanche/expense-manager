@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.routes.documents import router as documents_router
 from app.api.routes.expenses import router as expenses_router
 from app.api.routes.health import router as health_router
 
@@ -13,6 +14,9 @@ def create_app() -> FastAPI:
     
     # Router CRUD spese
     app.include_router(expenses_router)
+    
+    # Router per caricamento documenti
+    app.include_router(documents_router)
     
     return app
 

@@ -213,3 +213,6 @@ data/
 note
 expense-manager-ai-tracked.zip
 prompt.txt
+
+# File locali: upload ricevute / artefatti OCR
+backend/data/

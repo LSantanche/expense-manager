@@ -19,7 +19,13 @@ class Settings(BaseSettings):
     app_env: str = "local"
     database_url: str = "postgresql+psycopg://expense:expense@localhost:5432/expense_db"
     sql_echo: bool = False
+    # Directory base dove salviamo file e artefatti locali (upload, OCR json, ecc.)
+    storage_dir: str = "data"
 
+    @property
+    def storage_path(self) -> Path:
+        # Percorso assoluto: backend/<storage_dir>
+        return BACKEND_DIR / self.storage_dir
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
