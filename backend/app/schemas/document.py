@@ -11,3 +11,7 @@ class DocumentUploadResponse(BaseModel):
     sha256: str
     stored_relative_path: str
     created_at: str
+
+
+class DocumentRead(DocumentUploadResponse):
+    status: str
