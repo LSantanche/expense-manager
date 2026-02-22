@@ -1439,6 +1439,22 @@ files = [
 windows-terminal = ["colorama (>=0.4.6)"]
 
 [[package]]
+name = "pytesseract"
+version = "0.3.13"
+description = "Python-tesseract is a python wrapper for Google's Tesseract-OCR"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pytesseract-0.3.13-py3-none-any.whl", hash = "sha256:7a99c6c2ac598360693d83a416e36e0b33a67638bb9d77fdcac094a3589d4b34"},
+    {file = "pytesseract-0.3.13.tar.gz", hash = "sha256:4bf5f880c99406f52a3cfc2633e42d9dc67615e69d8a509d74867d3baddb5db9"},
+]
+
+[package.dependencies]
+packaging = ">=21.3"
+Pillow = ">=8.0.0"
+
+[[package]]
 name = "pytest"
 version = "8.4.2"
 description = "pytest: simple powerful testing with Python"
@@ -2381,4 +2397,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "6e969b06fce66c7979908866462638893935bf11ee70ffdeed5d1b4757eaaa35"
+content-hash = "64e218bb3a85e1f4d4b70c5a9c245bf6664cde6f76798557bb12470f2eccc7c8"

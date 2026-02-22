@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     sql_echo: bool = False
     # Directory base dove salviamo file e artefatti locali (upload, OCR json, ecc.)
     storage_dir: str = "data"
+    # OCR: percorso opzionale a tesseract.exe (se non è nel PATH)
+    tesseract_cmd: str | None = None
+    # OCR: lingue tesseract (es: "eng" oppure "ita+eng" se installi i language pack)
+    tesseract_lang: str = "eng"
 
     @property
     def storage_path(self) -> Path:

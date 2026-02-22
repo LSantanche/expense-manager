@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -22,3 +22,7 @@ class Document(TimestampMixin, Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="uploaded", index=True)
+
+    ocr_text_plain: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    ocr_json_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)

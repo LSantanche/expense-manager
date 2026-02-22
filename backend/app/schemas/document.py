@@ -15,3 +15,6 @@ class DocumentUploadResponse(BaseModel):
 
 class DocumentRead(DocumentUploadResponse):
     status: str
+    ocr_text_plain: str | None = None
+    ocr_json_path: str | None = None
+    error_message: str | None = None

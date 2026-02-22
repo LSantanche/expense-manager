@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db import get_db
 from app.schemas.document import DocumentRead
-from app.services.documents import create_document, get_document
+from app.services.documents import create_document, get_document, process_document_ocr
 from app.storage import is_allowed_mime, save_uploaded_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -53,4 +53,31 @@ def read_document(
         stored_relative_path=doc.storage_path,
         created_at=doc.created_at.isoformat(),
         status=doc.status,
+        ocr_text_plain=doc.ocr_text_plain,
+        ocr_json_path=doc.ocr_json_path,
+        error_message=doc.error_message,
+    )
+
+
+@router.post("/{document_id}/process-ocr", response_model=DocumentRead)
+def process_ocr(
+    document_id: str = Path(..., min_length=36, max_length=36),
+    db: Session = db_dep,
+) -> DocumentRead:
+    doc = process_document_ocr(db, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return DocumentRead(
+        document_id=doc.id,
+        original_filename=doc.original_filename,
+        mime_type=doc.mime_type,
+        size_bytes=doc.size_bytes,
+        sha256=doc.sha256,
+        stored_relative_path=doc.storage_path,
+        created_at=doc.created_at.isoformat(),
+        status=doc.status,
+        ocr_text_plain=doc.ocr_text_plain,
+        ocr_json_path=doc.ocr_json_path,
+        error_message=doc.error_message,
     )
