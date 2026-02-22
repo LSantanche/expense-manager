@@ -30,5 +30,5 @@ def preprocess_for_tesseract(img: Image.Image) -> Image.Image:
     # 160 è un compromesso: lo renderemo configurabile/tunable dopo.
     bw = gray.point(lambda x: 255 if x > 160 else 0, mode="1")
 
-    # Torniamo in "L" per compatibilità con pytesseract
+    # Torniamo in "L" per compatibilità con pytesseract anche se rimane binarizzato
     return bw.convert("L")
