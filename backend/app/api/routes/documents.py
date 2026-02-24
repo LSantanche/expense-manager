@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path as SysPath
+
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -81,3 +85,27 @@ def process_ocr(
         ocr_json_path=doc.ocr_json_path,
         error_message=doc.error_message,
     )
+
+@router.get("/{document_id}/ocr-json")
+def get_ocr_json(
+    document_id: str = Path(..., min_length=36, max_length=36),
+    db: Session = db_dep,
+) -> JSONResponse:
+    doc = get_document(db, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if doc.status != "processed" or not doc.ocr_json_path:
+        raise HTTPException(
+            status_code=409,
+            detail="OCR not available for this document (status is not processed)",
+        )
+
+    abs_json = settings.storage_path.parent / SysPath(doc.ocr_json_path)
+    if not abs_json.exists():
+        raise HTTPException(status_code=404, detail="OCR JSON file not found on disk")
+
+    payload = json.loads(abs_json.read_text(encoding="utf-8"))
+    return JSONResponse(content=payload)
+
+

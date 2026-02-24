@@ -31,6 +31,20 @@ def api_list_expenses(params: dict) -> dict:
         return r.json()
 
 
+def api_get_document(document_id: str) -> dict:
+    with httpx.Client(timeout=5.0) as client:
+        r = client.get(f"{API_BASE_URL}/documents/{document_id}")
+        r.raise_for_status()
+        return r.json()
+
+
+def api_get_ocr_json(document_id: str) -> dict:
+    with httpx.Client(timeout=10.0) as client:
+        r = client.get(f"{API_BASE_URL}/documents/{document_id}/ocr-json")
+        r.raise_for_status()
+        return r.json()
+    
+
 st.set_page_config(page_title="Expense Manager AI", layout="wide")
 st.title("Expense Manager AI – Streamlit v1")
 st.caption(f"Backend API: {API_BASE_URL}")
@@ -57,7 +71,6 @@ if ok:
 else:
     st.sidebar.error("Backend /health: KO (non raggiungibile)")
 
-save_msg = st.sidebar.empty()
 with st.sidebar:
     st.header("Inserisci spesa (manuale)")
 
@@ -150,6 +163,43 @@ if submitted:
             st.error(f"Errore API ({e.response.status_code}): {e.response.text}")
         except httpx.RequestError as e:
             st.error(f"Backend non raggiungibile: {e}")
+
+st.divider()
+st.subheader("OCR Viewer")
+
+doc_id = st.text_input("Document ID (UUID)", value="", help="Incolla qui il document_id ottenuto da /documents/upload")
+
+c1, c2 = st.columns([1, 1])
+with c1:
+    fetch_doc = st.button("Carica documento")
+with c2:
+    fetch_json = st.button("Scarica OCR JSON")
+
+if fetch_doc and doc_id.strip():
+    try:
+        doc = api_get_document(doc_id.strip())
+        st.write(f"Status: **{doc['status']}**")
+        if doc.get("error_message"):
+            st.error(doc["error_message"])
+
+        if doc.get("ocr_text_plain"):
+            st.text_area("OCR plain text", value=doc["ocr_text_plain"], height=250)
+        else:
+            st.info("OCR plain text non disponibile (esegui prima process-ocr).")
+
+    except httpx.HTTPStatusError as e:
+        st.error(f"Errore API ({e.response.status_code}): {e.response.text}")
+    except httpx.RequestError as e:
+        st.error(f"Backend non raggiungibile: {e}")
+
+if fetch_json and doc_id.strip():
+    try:
+        ocr_json = api_get_ocr_json(doc_id.strip())
+        st.json(ocr_json)
+    except httpx.HTTPStatusError as e:
+        st.error(f"Errore API ({e.response.status_code}): {e.response.text}")
+    except httpx.RequestError as e:
+        st.error(f"Backend non raggiungibile: {e}")
 
 st.subheader("Spese recenti")
 
