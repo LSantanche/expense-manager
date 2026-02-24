@@ -33,14 +33,11 @@ class TesseractOcrEngine:
         # OCR lo fa il programma esterno tesseract.exe
         if settings.tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = settings.tesseract_cmd
-
-    def extract_from_image(self, image_path: Path) -> OcrResult:
-        img = Image.open(image_path)
+    
+    def extract_from_pil(self, img: Image.Image, *, page_index: int = 1) -> OcrResult:
         img = preprocess_for_tesseract(img)
 
-        # PSM 6: assume un blocco di testo "uniforme" (buon default per ricevute)
         config = "--psm 6"
-
         data: dict[str, Any] = pytesseract.image_to_data(
             img,
             lang=settings.tesseract_lang,
@@ -54,34 +51,29 @@ class TesseractOcrEngine:
         n = len(data.get("text", []))
         for i in range(n):
             txt = (data["text"][i] or "").strip()
-            conf_raw = data["conf"][i] # confidence
+            conf_raw = data["conf"][i]
 
-            # conf può essere stringa; -1 indica "non parola"
             try:
                 conf_int = int(float(conf_raw))
             except Exception:
                 conf_int = -1
 
-            # Se non ho estratto testo o non sono abbastanza "confident": skip
             if not txt or conf_int < 0:
                 continue
 
-            # Angoli del Bounding Box
             left = int(data["left"][i])
             top = int(data["top"][i])
             width = int(data["width"][i])
             height = int(data["height"][i])
-
             x1, y1, x2, y2 = left, top, left + width, top + height
 
-            page = data.get("page_num", [1])[i] # Numero pagina
-            block = data.get("block_num", [0])[i] # Blocco di testo (intestazione, corpo, totale...) 
-            par = data.get("par_num", [0])[i] # Paragrafo dentro un blocco
-            line = data.get("line_num", [0])[i] # Riga in un paragrafo
-            word = data.get("word_num", [0])[i] # Parola in una riga
+            # Per PDF usiamo page_index passato dall'esterno
+            block = data.get("block_num", [0])[i]
+            par = data.get("par_num", [0])[i]
+            line = data.get("line_num", [0])[i]
+            word = data.get("word_num", [0])[i]
 
-            # Per ricostruire full_text cerchiamo le parole nella stessa riga
-            line_key = f"{page}:{block}:{par}:{line}"
+            line_key = f"{page_index}:{block}:{par}:{line}"
 
             items.append(
                 OcrItem(
@@ -91,16 +83,17 @@ class TesseractOcrEngine:
                     line_key=line_key,
                 )
             )
-
-            # lines diventa un dizionario chiave_riga: lista di parole con numero per ordinarle
             lines.setdefault(line_key, []).append((int(word), txt))
 
-        # Ricostruzione full_text per righe
-        ordered_keys = sorted(lines.keys(), key=lambda k: [int(x) for x in k.split(":")]) # Ordina per page, block, par, line (sono separati da ":")
+        ordered_keys = sorted(lines.keys(), key=lambda k: [int(x) for x in k.split(":")])
         full_lines: list[str] = []
         for k in ordered_keys:
-            # Ordiniamo per word_num
             words = [w for _, w in sorted(lines[k], key=lambda t: t[0])]
             full_lines.append(" ".join(words))
 
         return OcrResult(engine="tesseract", items=items, full_text="\n".join(full_lines))
+
+
+    def extract_from_image(self, image_path: Path) -> OcrResult:
+        img = Image.open(image_path)
+        return self.extract_from_pil(img, page_index=1)
