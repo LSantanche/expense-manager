@@ -1,34 +1,89 @@
 from __future__ import annotations
 
-from PIL import Image, ImageEnhance, ImageOps
+import math
+
+import cv2
+import numpy as np
+from PIL import Image
+
+
+def _pil_to_cv_gray(img: Image.Image) -> np.ndarray:
+    """Converte PIL -> OpenCV grayscale (uint8)."""
+    arr = np.array(img.convert("RGB"))
+    bgr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    return gray
+
+
+def _cv_gray_to_pil(gray: np.ndarray) -> Image.Image:
+    """Converte OpenCV grayscale -> PIL."""
+    return Image.fromarray(gray)
+
+
+def _estimate_skew_angle(gray: np.ndarray) -> float:
+    """
+    Stima angolo di skew (in gradi) usando Hough su bordi.
+    Ritorna un angolo piccolo tipo [-15, +15] se trova linee.
+    """
+    edges = cv2.Canny(gray, 50, 150)
+    lines = cv2.HoughLinesP(edges, 1, math.pi / 180.0, threshold=80, minLineLength=100, maxLineGap=10)
+    if lines is None:
+        return 0.0
+
+    angles = []
+    for x1, y1, x2, y2 in lines[:, 0]:
+        dx = x2 - x1
+        dy = y2 - y1
+        if dx == 0:
+            continue
+        angle = math.degrees(math.atan2(dy, dx))
+        # Filtra linee quasi verticali
+        if -45 < angle < 45:
+            angles.append(angle)
+
+    if not angles:
+        return 0.0
+
+    # Mediana è più robusta di media
+    return float(np.median(np.array(angles)))
+
+
+def _deskew(gray: np.ndarray) -> np.ndarray:
+    angle = _estimate_skew_angle(gray)
+    if abs(angle) < 0.5:
+        return gray
+
+    (h, w) = gray.shape[:2]
+    center = (w // 2, h // 2)
+
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    return rotated
 
 
 def preprocess_for_tesseract(img: Image.Image) -> Image.Image:
     """
-    Preprocessing semplice per migliorare OCR su ricevute:
-    - converte in grayscale
-    - aumenta contrasto
-    - binarizza (bianco/nero) con threshold fisso (v0)
-    - upscale se l'immagine è piccola
+    Preprocessing v1:
+    - grayscale
+    - denoise leggero
+    - deskew (raddrizza)
+    - threshold Otsu (automatico)
+    - (opzionale) upscale se piccola
     """
-    # Converti in grayscale
-    gray = img.convert("L")
+    gray = _pil_to_cv_gray(img)
 
-    # Autocontrast aiuta su foto "spente"
-    gray = ImageOps.autocontrast(gray)
-
-    # Aumenta leggermente il contrasto
-    gray = ImageEnhance.Contrast(gray).enhance(1.5)
-
-    # Upscale se è piccola (testo più leggibile)
-    w, h = gray.size
+    # Upscale se l'immagine è piccola (testo più leggibile)
+    h, w = gray.shape[:2]
     if w < 1000:
-        scale = 2
-        gray = gray.resize((w * scale, h * scale))
+        gray = cv2.resize(gray, (w * 2, h * 2), interpolation=cv2.INTER_CUBIC)
 
-    # Binarizzazione semplice (threshold)
-    # 160 è un compromesso: lo renderemo configurabile/tunable dopo.
-    bw = gray.point(lambda x: 255 if x > 160 else 0, mode="1")
+    # Denoise leggero
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
 
-    # Torniamo in "L" per compatibilità con pytesseract anche se rimane binarizzato
-    return bw.convert("L")
+    # Deskew
+    gray = _deskew(gray)
+
+    # Threshold automatico Otsu
+    _, thr = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    return _cv_gray_to_pil(thr)

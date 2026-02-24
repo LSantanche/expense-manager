@@ -19,6 +19,7 @@ python-multipart = "^0.0.22"
 pytesseract = "^0.3.13"
 pillow = "^12.1.1"
 pypdfium2 = "^5.5.0"
+opencv-python-headless = "^4.13.0.92"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
