@@ -7,10 +7,11 @@ import pytest
 
 
 def _make_dummy_png(tmp_path: Path) -> Path:
-    # File dummy: non serve che sia una PNG valida, perché nei test non facciamo OCR reale.
-    # Però UploadFile salva bytes su disco: basta un contenuto qualsiasi.
+    from PIL import Image
+
     p = tmp_path / "dummy.png"
-    p.write_bytes(b"not-a-real-png")
+    img = Image.new("RGB", (100, 30), color=(255, 255, 255))
+    img.save(p, format="PNG")
     return p
 
 
@@ -22,7 +23,7 @@ def temp_storage(tmp_path, monkeypatch):
     """
     from app.core.config import settings
 
-    monkeypatch.setattr(settings, "storage_dir", str(tmp_path.name), raising=False)
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path), raising=False)
     # settings.storage_path usa BACKEND_DIR / storage_dir, quindi dobbiamo anche creare la cartella sotto backend/
     backend_dir = Path(__file__).resolve().parents[1]  # backend/
     storage_path = backend_dir / settings.storage_dir
@@ -34,7 +35,9 @@ def temp_storage(tmp_path, monkeypatch):
 def fake_ocr(monkeypatch):
     """
     Monkeypatch del Tesseract engine per rendere deterministico il risultato.
+    Patchiamo il simbolo già importato in app.services.documents.
     """
+    import app.services.documents as docs_svc
     from app.ocr import tesseract_engine as te
 
     class FakeEngine:
@@ -51,7 +54,7 @@ def fake_ocr(monkeypatch):
         def extract_from_pil(self, _img, *, page_index=1):
             return self.extract_from_image(None)
 
-    monkeypatch.setattr(te, "TesseractOcrEngine", FakeEngine)
+    monkeypatch.setattr(docs_svc, "TesseractOcrEngine", FakeEngine)
 
 
 def test_documents_upload_process_and_fetch_json(client, temp_storage, fake_ocr, tmp_path, monkeypatch):

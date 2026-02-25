@@ -45,7 +45,7 @@ def process_document_ocr(db: Session, document_id: str) -> Document | None:
         return None
 
     try:
-        abs_input = settings.storage_path.parent / doc.storage_path
+        abs_input = settings.storage_path / Path(doc.storage_path)
         engine = TesseractOcrEngine()
 
         pages_payload = []

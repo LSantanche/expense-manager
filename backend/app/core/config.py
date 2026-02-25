@@ -28,7 +28,10 @@ class Settings(BaseSettings):
 
     @property
     def storage_path(self) -> Path:
-        # Percorso assoluto: backend/<storage_dir>
+        # Se storage_dir è un path assoluto, lo usiamo direttamente.
+        p = Path(self.storage_dir)
+        if p.is_absolute():
+            return p
         return BACKEND_DIR / self.storage_dir
 
 @lru_cache(maxsize=1)

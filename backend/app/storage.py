@@ -71,6 +71,7 @@ def save_uploaded_document(
     upload.file.close()
 
     created_at = datetime.now(UTC).isoformat()
+    stored_rel = Path("documents") / document_id / stored_name
 
     metadata = {
         "document_id": document_id,
@@ -78,7 +79,7 @@ def save_uploaded_document(
         "mime_type": mime_type,
         "size_bytes": size_bytes,
         "sha256": sha256.hexdigest(),
-        "stored_relative_path": str(Path("data") / "documents" / document_id / stored_name),
+        "stored_relative_path": str(stored_rel),
         "created_at": created_at,
     }
 

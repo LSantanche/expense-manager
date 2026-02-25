@@ -216,3 +216,4 @@ prompt.txt
 
 # File locali: upload ricevute / artefatti OCR
 backend/data/
+backend/test_*/
