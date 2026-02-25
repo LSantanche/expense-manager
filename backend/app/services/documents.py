@@ -103,7 +103,7 @@ def process_document_ocr(db: Session, document_id: str) -> Document | None:
             encoding="utf-8",
         )
 
-        rel_ocr_path = str(Path(settings.storage_dir) / "documents" / doc.id / "ocr_result.json")
+        rel_ocr_path = str(Path("documents") / doc.id / "ocr_result.json")
 
         # Aggregazione testo: separatore tra pagine
         aggregated = "\n\n----- PAGE BREAK -----\n\n".join(full_text_pages)

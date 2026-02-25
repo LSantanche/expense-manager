@@ -101,7 +101,14 @@ def get_ocr_json(
             detail="OCR not available for this document (status is not processed)",
         )
 
-    abs_json = settings.storage_path / SysPath(doc.ocr_json_path)
+    p = SysPath(doc.ocr_json_path)
+
+    # Compatibilità: vecchi record salvavano "data\\documents\\..."
+    if str(p).lower().startswith("data\\") or str(p).lower().startswith("data/"):
+        abs_json = settings.storage_path.parent / p
+    else:
+        abs_json = settings.storage_path / p
+        
     if not abs_json.exists():
         raise HTTPException(status_code=404, detail="OCR JSON file not found on disk")
 

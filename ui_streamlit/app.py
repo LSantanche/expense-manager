@@ -44,6 +44,19 @@ def api_get_ocr_json(document_id: str) -> dict:
         r.raise_for_status()
         return r.json()
     
+def api_upload_document(file_name: str, file_bytes: bytes, mime_type: str) -> dict:
+    with httpx.Client(timeout=30.0) as client:
+        files = {"file": (file_name, file_bytes, mime_type)}
+        r = client.post(f"{API_BASE_URL}/documents/upload", files=files)
+        r.raise_for_status()
+        return r.json()
+
+
+def api_process_ocr(document_id: str) -> dict:
+    with httpx.Client(timeout=60.0) as client:
+        r = client.post(f"{API_BASE_URL}/documents/{document_id}/process-ocr")
+        r.raise_for_status()
+        return r.json()
 
 st.set_page_config(page_title="Expense Manager AI", layout="wide")
 st.title("Expense Manager AI – Streamlit v1")
@@ -165,9 +178,66 @@ if submitted:
             st.error(f"Backend non raggiungibile: {e}")
 
 st.divider()
+st.subheader("Documents: Upload + OCR")
+
+uploaded = st.file_uploader("Carica ricevuta (immagine o PDF)", type=None)
+
+if "last_document_id" not in st.session_state:
+    st.session_state["last_document_id"] = ""
+
+c1, c2, c3 = st.columns([1, 1, 2])
+
+with c1:
+    do_upload = st.button("Upload documento")
+with c2:
+    do_process = st.button("Process OCR")
+
+# Mostriamo sempre l'ultimo id conosciuto
+st.caption(f"Ultimo document_id: {st.session_state['last_document_id'] or '-'}")
+
+if do_upload:
+    if uploaded is None:
+        st.warning("Seleziona prima un file da caricare.")
+    else:
+        try:
+            file_bytes = uploaded.getvalue()
+            resp = api_upload_document(
+                file_name=uploaded.name,
+                file_bytes=file_bytes,
+                mime_type=uploaded.type or "application/octet-stream",
+            )
+            st.session_state["last_document_id"] = resp["document_id"]
+            st.success(f"Upload OK. document_id={resp['document_id']}")
+        except httpx.HTTPStatusError as e:
+            st.error(f"Errore API ({e.response.status_code}): {e.response.text}")
+        except httpx.RequestError as e:
+            st.error(f"Backend non raggiungibile: {e}")
+
+if do_process:
+    doc_id = st.session_state["last_document_id"]
+    if not doc_id:
+        st.warning("Nessun document_id disponibile. Prima fai upload.")
+    else:
+        try:
+            resp = api_process_ocr(doc_id)
+            st.success(f"OCR completato. status={resp['status']}")
+            if resp.get("error_message"):
+                st.error(resp["error_message"])
+            if resp.get("ocr_text_plain"):
+                st.text_area("OCR plain text (ultimo documento)", value=resp["ocr_text_plain"], height=250)
+        except httpx.HTTPStatusError as e:
+            st.error(f"Errore API ({e.response.status_code}): {e.response.text}")
+        except httpx.RequestError as e:
+            st.error(f"Backend non raggiungibile: {e}")
+
+st.divider()
 st.subheader("OCR Viewer")
 
-doc_id = st.text_input("Document ID (UUID)", value="", help="Incolla qui il document_id ottenuto da /documents/upload")
+doc_id = st.text_input(
+    "Document ID (UUID)",
+    value=st.session_state.get("last_document_id", ""),
+    help="Incolla qui il document_id ottenuto da /documents/upload",
+)
 
 c1, c2 = st.columns([1, 1])
 with c1:
@@ -264,7 +334,7 @@ try:
         if total == 0:
             st.info("Nessun risultato con i filtri attuali.")
         else:
-            st.dataframe(items, use_container_width=True)
+            st.dataframe(items, width="stretch")
 
         # Paginazione: Prev/Next
         prev_disabled = p["offset"] <= 0
