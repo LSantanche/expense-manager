@@ -7,6 +7,7 @@ from sqlalchemy.pool import StaticPool
 from app.db import get_db
 from app.main import create_app
 from app.models.base import Base
+from app.models.document import Document  # noqa: F401
 from app.models.expense import Expense  # noqa: F401
 
 # Expense va importato comunque altrimenti create_all potrebbe non creare tabelle
