@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db import get_db
 from app.schemas.document import DocumentRead
+from app.schemas.extraction import DocumentExtractionResponse
 from app.services.documents import create_document, get_document, process_document_ocr
+from app.services.extraction import extract_fields_for_document
 from app.storage import is_allowed_mime, save_uploaded_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -116,3 +118,12 @@ def get_ocr_json(
     return JSONResponse(content=payload)
 
 
+@router.post("/{document_id}/extract-fields", response_model=DocumentExtractionResponse)
+def extract_fields(
+    document_id: str = Path(..., min_length=36, max_length=36),
+    db: Session = db_dep,
+) -> DocumentExtractionResponse:
+    res = extract_fields_for_document(db, document_id)
+    if res is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return res
