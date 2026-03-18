@@ -12,6 +12,7 @@ from app.db import get_db
 from app.schemas.document import DocumentRead
 from app.schemas.extraction import DocumentExtractionResponse
 from app.services.documents import create_document, get_document, process_document_ocr
+from app.services.expenses import create_expense
 from app.services.extraction import extract_fields_for_document
 from app.storage import is_allowed_mime, save_uploaded_document
 
@@ -127,3 +128,44 @@ def extract_fields(
     if res is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return res
+
+@router.post("/{document_id}/propose-expense")
+def propose_expense(
+    document_id: str = Path(..., min_length=36, max_length=36),
+    db: Session = db_dep,
+) -> dict:
+    extraction = extract_fields_for_document(db, document_id)
+    if extraction is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    f = extraction.fields
+
+    # mapping semplice v0: se confidence >= 0.7 usiamo il valore, altrimenti None
+    total = f["total"].value if f["total"].confidence >= 0.7 else None
+    currency = f["currency"].value if f["currency"].confidence >= 0.6 else "EUR"
+    expense_date = f["date"].value if f["date"].confidence >= 0.7 else None
+    merchant = f["merchant"].value if f["merchant"].confidence >= 0.6 else None
+
+    # notes include evidence snippet
+    notes = f"OCR extraction rule_v0 (doc={document_id}).\\n"
+    for key, fld in f.items():
+        ev = fld.evidence.snippet if fld.evidence else None
+        notes += f"- {key}: value={fld.value} conf={fld.confidence:.2f} evidence={ev}\\n"
+
+    if total is None or expense_date is None:
+        # se mancano campi essenziali, comunque creo proposta ma needs_review resta True
+        pass
+
+    payload = {
+        "amount": total or "0.00",
+        "currency": currency or "EUR",
+        "expense_date": expense_date or "1970-01-01",
+        "merchant": merchant,
+        "category": None,
+        "notes": notes,
+        "source": "ocr",
+        "needs_review": True,
+    }
+
+    created = create_expense(db, payload)  # implementazione dipende dal tuo service attuale
+    return created
